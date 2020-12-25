@@ -1,0 +1,75 @@
+alias function_no R1;
+alias current_pid R2;
+//disk store
+if(function_no==1) then
+	alias pno R3;
+	alias bno R4;
+	multipush(R1,R2,R3,R4);
+	R1=3;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4);
+	[DISK_STATUS_TABLE+1]=1;
+	[DISK_STATUS_TABLE+2]=pno;
+	[DISK_STATUS_TABLE+3]=bno;
+	store(pno,bno);
+	[PROCESS_TABLE+(current_pid*16)+4]=WAIT_DISK;
+	multipush(R1,R2,R3,R4);
+	call SCHEDULER;
+	multipop(R1,R2,R3,R4);
+	return;
+endif;
+//disk load
+if(function_no==2) then
+	breakpoint;
+	alias pno R3;
+	alias bno R4;
+	multipush(R1,R2,R3,R4);
+	R1=3;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4);
+	[DISK_STATUS_TABLE+1]=0;
+	[DISK_STATUS_TABLE+2]=pno;
+	[DISK_STATUS_TABLE+3]=bno;
+	load(pno,bno);
+	[PROCESS_TABLE+(current_pid*16)+4]=WAIT_DISK;
+	multipush(R1,R2,R3,R4);
+	call SCHEDULER;
+	multipop(R1,R2,R3,R4);
+	breakpoint;
+	return;
+endif;
+//terminal write
+if(function_no==3) then
+	multipush(R1,R2,R3);
+	R1=8;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3);
+	print R3;
+	multipush(R1,R2,R3);
+	R1=9;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3);
+	return;
+endif;
+//terminal read
+if(function_no==4) then
+	multipush(R1,R2,R3);
+	R1=8;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3);
+	read;
+	[PROCESS_TABLE+(current_pid*16)+4]=WAIT_TERMINAL;
+	multipush(R1,R2,R3);
+	call SCHEDULER;
+	breakpoint;
+	multipop(R1,R2,R3);
+	R4=(([PTBR+2*((R3)/512)])*512)+((R3)%512);
+	[R4]=[PROCESS_TABLE+(current_pid*16)+8];
+	return;
+endif;
+

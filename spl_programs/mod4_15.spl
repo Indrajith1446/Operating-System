@@ -1,0 +1,18 @@
+alias function_no R1;
+alias current_pid R2;
+if(function_no==3) then
+	multipush(R1,R2,R3);
+	R1=8;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3);
+	print R3;
+	multipush(R1,R2,R3);
+	R1=9;
+	R2=current_pid;
+	call MOD_0;
+	multipop(R1,R2,R3);
+	return;
+else
+	return;
+endif;

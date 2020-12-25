@@ -1,0 +1,41 @@
+alias current_pid R0;
+current_pid=[SYSTEM_STATUS_TABLE+1];
+multipush(BP);
+alias process_table_entry R1;
+process_table_entry=PROCESS_TABLE+current_pid*16;
+[process_table_entry+12]=SP%512;
+[process_table_entry+14]=PTBR;
+[process_table_entry+15]=PTLR;
+alias i R2;
+alias new_pid R3;
+i=current_pid+1;
+while(i<16) do
+	if([PROCESS_TABLE+(i*16)+4]==READY) then
+		new_pid=i;
+		break;
+	endif;
+	if([PROCESS_TABLE+(i*16)+4]==CREATED) then
+		alias new_process_table R5;
+		new_process_table=PROCESS_TABLE+i*16;
+		[new_process_table+4]=RUNNING;
+		SP=[new_process_table+13];
+		[new_process_table+9]=0;
+		PTBR=[new_process_table+14];
+		PTLR=[new_process_table+15];
+		[SYSTEM_STATUS_TABLE+1]=i;
+		ireturn;
+	endif;
+	i=i+1;
+endwhile;
+if(i==16) then
+	new_pid=0;
+endif;
+alias new_process_table R5;
+new_process_table=PROCESS_TABLE+new_pid*16;
+SP=[new_process_table+11]*512+[new_process_table+12];
+PTBR=[new_process_table+14];
+PTLR=[new_process_table+15];
+[SYSTEM_STATUS_TABLE+1]=new_pid;
+[new_process_table+4]=RUNNING;
+multipop(BP);
+return;

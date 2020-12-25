@@ -1,0 +1,88 @@
+breakpoint;
+alias function_no R1;
+alias pageno R2;
+//release page
+if(function_no==2) then
+	[MEMORY_FREE_LIST+pageno]=[MEMORY_FREE_LIST+pageno]-1;
+	if([MEMORY_FREE_LIST+pageno]==0) then
+		[SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]+1;	
+		alias i R4;
+		i=0;
+		while(i<16) do
+			if([PROCESS_TABLE+(16*i)+4]==WAIT_MEM) then
+				[PROCESS_TABLE+(16*i)+4]=READY;
+			endif;
+			i=i+1;
+		endwhile;
+	endif;
+	return;
+endif;
+//get free page
+if(function_no==1) then
+	[SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]+1;
+	while([SYSTEM_STATUS_TABLE+2]==0) do
+		[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+4]=WAIT_MEM;
+		backup;
+		breakpoint;
+		call SCHEDULER;
+		breakpoint;
+		restore;
+	endwhile;
+	[SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]-1;
+	[SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
+	alias i R3;
+	i=0;
+	while(i<MAX_MEM_PAGE) do
+		if(([MEMORY_FREE_LIST+i])==0) then
+			R0=i;
+			[MEMORY_FREE_LIST+i]=1;
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	return;
+endif;
+//release block
+if(function_no==4) then
+	alias blockno R2;
+	[DISK_FREE_LIST+blockno]=[DISK_FREE_LIST+blockno]-1;
+	return;
+endif;
+//get code page
+if(function_no==5) then
+	alias blockno R5;
+	blockno=pageno;
+	alias i R6;
+	alias j R7;
+	i=0;
+	j=0;
+	while(i<16) do
+		j=0;
+		while(j<10) do
+			if([DISK_MAP_TABLE+i*10+j]==blockno) then
+				if([PAGE_TABLE_BASE+(i*20)+(2*j)]!=-1) then
+					R0=[PAGE_TABLE_BASE+(i*20)+(2*j)];
+					[MEMORY_FREE_LIST+R0]=[MEMORY_FREE_LIST+R0]+1;
+					return;
+				endif;
+			endif;
+			j=j+1;
+		endwhile;
+		i=i+1;
+	endwhile;
+	multipush(R1,R2,R3,R4);
+	R1=1;
+	call MOD_2;
+	breakpoint;
+	multipop(R1,R2,R3,R4);
+	R7=R0;
+	multipush(R1,R2,R3,R4,R7);
+	R1=2;
+	R2=[SYSTEM_STATUS_TABLE+1];
+	R3=R0;
+	R4=blockno;
+	call MOD_4;
+	multipop(R1,R2,R3,R4,R7);
+	R0=R7;
+	return;
+endif;
