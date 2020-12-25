@@ -1,0 +1,164 @@
+breakpoint;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias syscallno R2;
+alias ra R3;
+syscallno=[([PTBR+2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+ra=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+//newusr
+if(syscallno==22) then
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=22;
+	alias pid R4;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	if(pid!=2||[SYSTEM_STATUS_TABLE]!=1) then
+		[ra]=-2;
+		goto exit;
+	endif;
+	alias uname R5;
+	alias pwd R6;
+	uname=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	pwd=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+	alias i R7;
+	while(i<16) do
+		if([USER_TABLE+i*2]==uname) then
+			[ra]=-1;
+			goto exit;
+		endif;
+		i=i+1;
+	endwhile;
+	i=0;
+	while(i<16) do
+		if([USER_TABLE+i*2]==-1) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==16) then 
+		[ra]=-3;
+		goto exit;
+	endif;
+	encrypt pwd;
+	[USER_TABLE+i*2]=uname;
+	[USER_TABLE+i*2+1]=pwd;
+	[ra]=0;
+	goto exit;
+endif;
+//remusr
+if(syscallno==23) then
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=23;
+	alias pid R4;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	if(pid!=2||[SYSTEM_STATUS_TABLE]!=1) then
+		[ra]=-2;
+		goto exit;
+	endif;
+	alias uname R5;
+	uname=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	if(uname=="root"||uname=="kernel") then
+		[ra]=-2;
+		goto exit;
+	endif;
+	alias i R6;
+	i=2;
+	while(i<16) do
+		if([USER_TABLE+i*2]==uname) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==16) then
+		[ra]=-1;	
+		goto exit;
+	endif;
+	alias j R7;
+	j=0;
+	while(j<60) do
+		if([ROOT_FILE+j*8+3]==i) then
+			[ra]=-3;
+			goto exit;
+		endif;
+		j=j+1;
+	endwhile;
+	[USER_TABLE+i*2]=-1;
+	[USER_TABLE+i*2+1]=-1;
+	[ra]=0;
+	goto exit;	
+endif;
+//setpwd
+if(syscallno==24) then
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=24;
+	alias pid R4;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	if(pid!=2) then
+		[ra]=-1;
+		goto exit;
+	endif;
+	alias uname R5;
+	uname=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	alias i R6;
+	i=0;
+	while(i<16) do
+		if([USER_TABLE+i*2]==uname) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==16) then
+		[ra]=-2;	
+		goto exit;
+	endif;
+	if(i!=[PROCESS_TABLE+pid*16+3]) then
+		if([PROCESS_TABLE+pid*16+3]!=1) then
+			[ra]=-1;
+			goto exit;
+		endif;
+	endif;
+	alias pwd R7;
+	pwd=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+	encrypt pwd;
+	[USER_TABLE+i*2+1]=pwd;
+	[ra]=0;
+	goto exit;
+	
+endif;
+//getuname
+if(syscallno==25) then
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=25;
+	alias uid R4;
+	uid=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	if(uid<0||uid>15) then
+		[ra]=-1;
+		goto exit;
+	endif;
+	if([USER_TABLE+uid*2]==-1) then
+		[ra]=-1;
+		goto exit;
+	endif;
+	alias uname R5;
+	uname=[USER_TABLE+uid*2];
+	[ra]=uname;
+	goto exit;
+endif;
+//getuid
+if(syscallno==26) then
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=26;	
+	alias i R4;
+	alias uname R5;
+	uname=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	i=0;
+	while(i<16) do
+		if([USER_TABLE+i*2]==uname) then
+			[ra]=i;
+			goto exit;		
+		endif;
+		i=i+1;
+	endwhile;
+	[ra]=-1;
+	goto exit;
+endif;
+exit:
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;

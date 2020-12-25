@@ -1,0 +1,45 @@
+breakpoint;
+//login
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=27;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias pid R2;
+pid=[SYSTEM_STATUS_TABLE+1];
+alias ra R3;
+ra=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+if(pid!=1) then
+	[ra]=-2;
+	goto exit;
+endif;
+alias uname R4;
+alias passwd R5;
+uname=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+passwd=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+alias i R6;
+i=0;
+while(i<16) do
+	if([USER_TABLE+2*i]==uname) then
+		break;
+	endif;
+	i=i+1;
+endwhile;
+encrypt passwd;
+if([USER_TABLE+2*i+1]!=passwd) then
+	[ra]=-1;
+	goto exit;
+endif;
+[PROCESS_TABLE+2*16+4]=CREATED;
+[PROCESS_TABLE+2*16+5]=i;
+[PROCESS_TABLE+pid*16+4]=WAIT_PROCESS;
+[PROCESS_TABLE+pid*16+5]=2;
+[SYSTEM_STATUS_TABLE]=i;
+multipush(R1,R2,R3,R4,R5,R6);
+call SCHEDULER;
+multipop(R1,R2,R3,R4,R5,R6);
+[ra]=0;
+exit:	
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;

@@ -1,0 +1,55 @@
+breakpoint;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=-1;
+[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+13]=SP;
+SP=[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512-1;
+backup;
+multipush(EIP);
+if((EC!=0)) then
+	print("Err not pf");
+	R1=3;
+	R2=[SYSTEM_STATUS_TABLE+1];
+	call MOD_1;
+	multipush(R1,R2);
+	call SCHEDULER;
+	multipop(R1,R2);
+endif;
+if(EPN>=4&&EPN<=7) then
+	alias blno R5;
+	blno=[DISK_MAP_TABLE+[SYSTEM_STATUS_TABLE+1]*10+EPN];
+	multipush(R1,R2,R3,R4,R5);
+	R1=5;
+	R2=blno;
+	call MOD_2;
+	multipop(R1,R2,R3,R4,R5);
+	alias pid R3;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)]=R0;
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)+1]="1110";
+endif;
+if(EPN==2||EPN==3) then
+	multipush(R1,R2,R3,R4,R5);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3,R4,R5);
+	alias pid R3;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)]=R0;
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)+1]="1110";
+	multipush(R1,R2,R3,R4,R5);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3,R4,R5);
+	pid=R3;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)+2]=R0;
+	[PAGE_TABLE_BASE+pid*20+2*(EPN)+3]="1110";
+endif;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+multipop(EIP);
+restore;
+SP=[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+13];
+SP=SP+1;
+breakpoint;
+[[PTBR+2*(SP/512)]*512+(SP%512)]=EIP;
+ireturn;
+

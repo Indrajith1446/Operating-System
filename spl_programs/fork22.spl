@@ -1,0 +1,117 @@
+alias pid R3;
+pid=[SYSTEM_STATUS_TABLE+1];
+[PROCESS_TABLE+pid*16+9]=8;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+pid*16+13]=SP;
+SP=[PROCESS_TABLE+pid*16+11]*512-1;
+alias pbi R2;
+multipush(R1,R2,R3);
+R1=1;
+call MOD_1;
+multipop(R1,R2,R3);
+pbi=R0;
+if(pbi==-1) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+pid*16+9]=0;	
+	ireturn;
+endif;
+alias PTB R12;
+PTB=PAGE_TABLE_BASE;
+if([PTB+pid*20+4]==-1) then
+	multipush(R1,R2,R3,R12);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3,R12);
+	[PTB+pid*20+4]=R0;
+	[PTB+pid*20+5]="1110";
+	multipush(R1,R2,R3,R12);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3,R12);
+	[PTB+pid*20+6]=R0;
+	[PTB+pid*20+7]="1110";
+endif;
+alias uap R4;
+alias us1 R5;
+alias us2 R6;
+multipush(R1,R2,R3,R4,R5,R6,R12);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6,R12);
+uap=R0;
+multipush(R1,R2,R3,R4,R5,R6,R12);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6,R12);
+us1=R0;
+multipush(R1,R2,R3,R4,R5,R6,R12);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6,R12);
+us2=R0;
+alias ppt R9;
+alias cpt R10;
+ppt=PROCESS_TABLE+pid*16;
+cpt=PROCESS_TABLE+pbi*16;
+[cpt+3]=[ppt+3];
+[cpt+6]=[ppt+6];
+[cpt+10]=[ppt+10];
+[cpt+7]=[ppt+7];
+[cpt+13]=[ppt+13];
+[cpt+9]=0;
+[cpt+12]=0;
+[cpt+0]=0;
+[cpt+2]=pid;
+[cpt+4]=CREATED;
+[cpt+11]=uap;
+alias i R7;
+//copying disk map table
+i=0;
+while(i<10) do
+	[DISK_MAP_TABLE+pbi*10+i]=[DISK_MAP_TABLE+pid*10+i];
+	i=i+1;
+endwhile;
+//copying per process resource table
+breakpoint;
+i=0;
+alias userpno R8;
+userpno=[ppt+11];
+while(i<8) do
+	[uap*512+496+i*2]=[userpno*512+496+i*2];
+	[uap*512+496+i*2+1]=[userpno*512+496+i*2+1];
+	if([uap*512+496+i*2]==1) then
+		[SEMAPHORE_TABLE+[uap*512+496+i*2+1]*4+1]=[SEMAPHORE_TABLE+[uap*512+496+i*2+1]*4+1]+1;
+	endif;
+	i=i+1;
+endwhile;
+//copying lib heap and code page
+i=0;
+while(i<16) do
+	[PTB+pbi*20+i]=[PTB+pid*20+i];
+	[PTB+pbi*20+i+1]=[PTB+pid*20+i+1];
+	if([PTB+pbi*20+i]!=-1) then
+		[MEMORY_FREE_LIST+[PTB+pid*20+i]]=[MEMORY_FREE_LIST+[PTB+pid*20+i]]+1;
+	endif;
+	i=i+2;
+endwhile;
+//stack initialisation
+[PTB+pbi*20+16]=us1;
+[PTB+pbi*20+17]=[PTB+pid*20+17];
+[PTB+pbi*20+18]=us2;
+[PTB+pbi*20+19]=[PTB+pid*20+19];
+i=0;
+while(i<=511) do
+	[[PTB+pbi*20+16]*512+i]=[[PTB+pid*20+16]*512+i];
+	[[PTB+pbi*20+18]*512+i]=[[PTB+pid*20+18]*512+i];
+	i=i+1;
+endwhile;
+PTBR=[ppt+14];
+[[cpt+11]*512]=BP;
+[([[ppt+14]+2*(([ppt+13]-1)/512)]*512)+(([ppt+13]-1)%512)]=pbi;
+[([[cpt+14]+2*(([cpt+13]-1)/512)]*512)+(([cpt+13]-1)%512)]=0;
+[ppt+9]=0;
+SP=[ppt+13];
+breakpoint;
+ireturn;

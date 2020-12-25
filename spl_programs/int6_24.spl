@@ -1,0 +1,106 @@
+breakpoint;
+[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+9]=7;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias file_descriptor R2;
+file_descriptor=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+if(file_descriptor==-1) then
+	alias word R3;
+	word=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+	multipush(R1,R2,R3);
+	R1=4;
+	R2=[SYSTEM_STATUS_TABLE+1];
+	R3=word;
+	call MOD_4;
+	multipop(R1,R2,R3);
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+	goto exit1;
+else
+	if(file_descriptor<0||file_descriptor>7) then
+		[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+		goto exit1;
+	endif;
+	alias j R3;
+	alias pid R4;
+	alias uap R5;
+	pid=[SYSTEM_STATUS_TABLE+1];
+	uap=[PROCESS_TABLE+pid*16+11];
+	if([uap*512+496+2*file_descriptor]!=0) then
+		[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+		goto exit1;
+	endif;	
+	j=[uap*512+496+2*file_descriptor+1];
+	alias i R6;
+	i=[OPEN_FILE_TABLE+4*j];
+	multipush(R1,R2,R3,R4,R5,R6);
+	R1=4;	
+	R2=i;
+	R3=pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6);
+	if(R0==-1) then
+		[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+		goto exit1;
+	endif;
+	alias lseek R7;
+	lseek=[OPEN_FILE_TABLE+4*j+2];
+	alias bufad R8;
+	bufad=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+	alias phyad R9;
+	phyad=([PTBR+2*((bufad)/512)]*512)+((bufad)%512);
+	if(i==INODE_ROOT) then
+		if(lseek==480) then
+			multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+			R1=5;
+			R2=i;
+			R3=pid;
+			call MOD_0;
+			multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+			[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+			goto exit1;
+		endif;
+		[phyad]=[ROOT_FILE+lseek];
+		lseek=lseek+1;
+		[OPEN_FILE_TABLE+4*j+2]=lseek;
+	else
+		if(lseek==[INODE_TABLE+i*16+2]) then
+			multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+			R1=5;
+			R2=i;
+			R3=pid;
+			call MOD_0;
+			multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+			[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+			goto exit1;
+		endif;
+		breakpoint;
+		alias blockindex R10;
+		alias blockoffset R11;
+		blockindex=lseek/512;
+		blockoffset=lseek%512;
+		blockindex=[INODE_TABLE+i*16+8+blockindex];
+		multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+		R1=2;
+		R2=blockindex;
+		R3=blockoffset;
+		R4=phyad;
+		call MOD_3;
+		multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+		lseek=lseek+1;
+		[OPEN_FILE_TABLE+4*j+2]=lseek;
+	endif;
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+	R1=5;
+	R2=i;
+	R3=pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+	goto exit1;
+endif;
+exit1:
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	SP=userSP;
+	ireturn;

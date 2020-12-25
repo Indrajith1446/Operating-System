@@ -1,0 +1,165 @@
+alias userSP R1;
+userSP=SP;
+alias pid R10;
+pid=[SYSTEM_STATUS_TABLE+1];
+[PROCESS_TABLE+pid*16+13]=SP;
+SP=[PROCESS_TABLE+pid*16+11]*512-1;
+alias syscallno R2;
+syscallno=[([PTBR+2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+alias ra R7;
+ra=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+//create
+if(syscallno==1) then
+	[PROCESS_TABLE+pid*16+9]=1;
+	alias filename R3;
+	alias permission R4;
+	filename=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	permission=[([PTBR+2*((userSP-3)/512)]*512)+((userSP-3)%512)];	
+	alias i R5;
+	alias flag R6;
+	flag=0;
+	i=0;
+	while(i<60) do
+		if([INODE_TABLE+i*16+1]==filename) then
+			flag=1;
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(flag==1) then
+		goto exit0;
+	endif;
+	i=0;
+	while(i<60) do
+		if([INODE_TABLE+i*16+1]==-1) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==60) then
+		goto exitm1;
+	endif;
+	alias iti R8;
+	alias rfi R9;
+	iti=INODE_TABLE+i*16;
+	rfi=ROOT_FILE+i*8;
+	[iti+1]=filename;
+	[iti+2]=0;
+	[iti]=DATA;
+	[iti+3]=pid;
+	[iti+4]=permission;
+	[iti+8]=-1;
+	[iti+9]=-1;
+	[iti+10]=-1;
+	[iti+11]=-1;
+	[rfi]=filename;
+	[rfi+1]=0;
+	[rfi+2]=DATA;
+	[rfi+3]=pid;
+	[rfi+4]=permission;
+	goto exit0;
+endif;
+//delete
+if(syscallno==4) then
+	[PROCESS_TABLE+pid*16+9]=4;
+	alias filename R3;
+	filename=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	alias i R4;
+	alias flag R5;
+	flag=0;	
+	i=0;
+	while(i<60) do
+		if([INODE_TABLE+i*16+1]==filename) then
+			flag=1;
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(flag==0) then
+		goto exit0;
+	endif;
+	if([INODE_TABLE+i*16]!=DATA) then
+		goto exitm1;
+	endif;
+	if([INODE_TABLE+i*16+4]==0) then
+		if(([INODE_TABLE+i*16+3]!=pid)||([PROCESS_TABLE+pid*16+3]!=1)) then
+			goto exitm1;
+		endif;
+	endif;
+	multipush(R1,R2,R3,R4,R7,R10);
+	R1=4;
+	R2=i;
+	R3=pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R7,R10);
+	if([FILE_STATUS_TABLE+i*4+1]!=-1) then
+		multipush(R1,R2,R3,R4,R7,R10);
+		R1=5;
+		R2=i;
+		R3=pid;
+		call MOD_0;
+		multipop(R1,R2,R3,R4,R7,R10);
+		[ra]=-2;
+		SP=userSP;
+		[PROCESS_TABLE+pid*16+9]=0;
+		ireturn;
+	endif;
+	alias j R5;
+	alias k R6;
+	j=8;
+	while(j<12) do
+		if([INODE_TABLE+i*16+j]!=-1) then
+			k=0;
+			while(k<4) do
+				if([BUFFER_TABLE+k*4]==[INODE_TABLE+i*16+j]) then
+					if([BUFFER_TABLE+k*4+1]!=-1) then
+						[BUFFER_TABLE+k*4+1]=-1;
+					endif;
+				endif;
+				k=k+1;
+			endwhile;
+			multipush(R1,R2,R3,R4,R5,R6,R7,R10);
+			R1=4;
+			R2=[INODE_TABLE+i*16+j];
+			R3=pid;
+			call MOD_2;
+			multipop(R1,R2,R3,R4,R5,R6,R7,R10);
+		endif;
+		j=j+1;
+	endwhile;
+	alias iti R8;
+	alias rfi R9;
+	iti=INODE_TABLE+i*16;
+	rfi=ROOT_FILE+i*8;
+	[iti+1]=-1;
+	[iti+2]=-1;
+	[iti]=-1;
+	[iti+3]=-1;
+	[iti+4]=-1;
+	[iti+8]=-1;
+	[iti+9]=-1;
+	[iti+10]=-1;
+	[iti+11]=-1;
+	[rfi]=-1;
+	[rfi+1]=-1;
+	[rfi+2]=-1;
+	[rfi+3]=-1;
+	[rfi+4]=-1;
+	multipush(R1,R2,R3,R4,R5,R6,R7,R10);
+	R1=5;
+	R2=i;
+	R3=pid;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R10);
+	goto exit0;			
+endif;
+exit0:
+	[ra]=0;
+	SP=userSP;
+	[PROCESS_TABLE+pid*16+9]=0;
+	ireturn;
+exitm1:
+	[ra]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+pid*16+9]=0;
+	ireturn;

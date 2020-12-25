@@ -1,0 +1,70 @@
+breakpoint;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=21;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+if([SYSTEM_STATUS_TABLE+1]!=2) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;
+endif;
+if([PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+3]!=1) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;
+endif;
+multipush(R1);
+R1=5;
+R2=[SYSTEM_STATUS_TABLE+1];
+call MOD_1;
+multipop(R1);
+alias i R2;
+i=0;
+breakpoint;
+while(i<4) do
+	if([BUFFER_TABLE+i*4+1]==1) then
+		multipush(R1,R2);
+		R1=1;
+		R3=71+i;
+		R4=[BUFFER_TABLE+i*4];
+		R2=[SYSTEM_STATUS_TABLE+1];
+		call MOD_4;
+		multipop(R1,R2);
+	endif;
+	i=i+1;
+endwhile;
+//inode+user
+multipush(R1);
+R1=1;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=59;
+R4=3;
+call MOD_4;
+multipop(R1);
+multipush(R1);
+R1=1;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=60;
+R4=4;
+call MOD_4;
+multipop(R1);
+//rootfile
+multipush(R1);
+R1=1;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=62;
+R4=5;
+call MOD_4;
+multipop(R1);
+//disk free list
+multipush(R1);
+R1=1;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=61;
+R4=2;
+call MOD_4;
+multipop(R1);
+halt;

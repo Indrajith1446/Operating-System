@@ -1,0 +1,32 @@
+breakpoint;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=28;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias pid R2;
+pid=[SYSTEM_STATUS_TABLE+1];
+if(pid!=2) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;
+endif;
+multipush(R1,R2);
+R1=5;
+R2=pid;
+call MOD_1;
+multipop(R1,R2);
+breakpoint;
+[PROCESS_TABLE+pid*16+4]=TERMINATED;
+alias codepg R3;
+alias stackpg R4;
+codepg=[PTBR+8];
+stackpg=[PTBR+16];
+[stackpg*512]=[codepg*512+1];
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=512*8;
+[PROCESS_TABLE+1*16+4]=READY;
+[SYSTEM_STATUS_TABLE]=0;
+call SCHEDULER;
+
+

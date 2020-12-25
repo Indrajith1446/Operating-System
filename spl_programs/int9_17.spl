@@ -1,0 +1,109 @@
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=9;
+alias userSP R0;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias filename R1;
+filename=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+alias i R2;
+alias flag R3;
+flag=0;
+i=0;
+while(i<MAX_FILE_NUM) do
+	if([INODE_TABLE+(i*16)+1]==filename) then
+		flag=1;
+		break;
+	endif;
+	i=i+1;
+endwhile;
+if(flag==0) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+	ireturn;
+endif;
+if([INODE_TABLE+(i*16)]!=EXEC) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;	
+	ireturn;
+endif;
+multipush(R0,R1,R2);
+R1=3;
+R2=[SYSTEM_STATUS_TABLE+1];
+breakpoint;
+call MOD_1;
+breakpoint;
+multipop(R0,R1,R2);
+alias user_pno R3;
+user_pno=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11];
+[MEMORY_FREE_LIST]=[MEMORY_FREE_LIST]+1;
+[SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+4]=RUNNING;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+7]=i;
+PTBR=PAGE_TABLE_BASE+i*20;
+//lib
+[PTBR+0]=63;
+[PTBR+1]="0100";
+[PTBR+2]=64;
+[PTBR+3]="0100";
+//heap
+multipush(R1,R2,R3,R4);
+R1=1;
+breakpoint;
+call MOD_2;
+breakpoint;
+[PTBR+4]=R0;
+[PTBR+5]="0110";
+multipop(R1,R2,R3,R4);
+multipush(R1,R2,R3,R4);
+R1=1;
+breakpoint;
+call MOD_2;
+breakpoint;
+[PTBR+6]=R0;
+[PTBR+7]="0110";
+multipop(R1,R2,R3,R4);
+//stack
+multipush(R1,R2,R3,R4);
+R1=1;
+breakpoint;
+call MOD_2;
+breakpoint;
+[PTBR+16]=R0;
+[PTBR+17]="0110";
+multipop(R1,R2,R3,R4);
+multipush(R1,R2,R3,R4);
+R1=1;
+breakpoint;
+call MOD_2;
+breakpoint;
+[PTBR+18]=R0;
+[PTBR+19]="0110";
+multipop(R1,R2,R3,R4);
+R5=1;
+R6=0;
+while(R6<4) do
+	if(R5>0) then
+		multipush(R1,R2,R3,R4,R5,R6);
+		R1=1;
+		breakpoint;
+		call MOD_2;
+		breakpoint;
+		multipop(R1,R2,R3,R4,R5,R6);
+		[PTBR+8+(2*R6)]=R0;
+		[PTBR+9+(2*R6)]="0110";
+		loadi(R0,[INODE_TABLE+(i*16)+8+(R6)]);
+	else
+		[PTBR+8+(2*R6)]=-1;
+		[PTBR+9+(2*R6)]="0000";
+	endif;
+	R5=R5-1;
+	R6=R6+1;
+endwhile;
+[[PTBR+16]*512]=[[PTBR+8]*512+1];
+SP=8*512;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+ireturn;
+

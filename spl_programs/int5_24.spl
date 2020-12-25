@@ -1,0 +1,77 @@
+breakpoint;
+alias userSP R1;
+userSP=SP;
+alias pid R10;
+pid=[SYSTEM_STATUS_TABLE+1];
+[PROCESS_TABLE+pid*16+13]=SP;
+SP=[PROCESS_TABLE+pid*16+11]*512-1;
+alias syscallno R2;
+syscallno=[([PTBR+2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+alias ra R7;
+ra=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+//open
+if(syscallno==2) then
+	[PROCESS_TABLE+pid*16+9]=2;
+	alias filename R3;
+	filename=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	alias i R4;
+	alias uap R5;
+	uap=[PROCESS_TABLE+pid*16+11];
+	i=0;
+	while(i<8) do
+		if([uap*512+496+2*i]==-1) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==8) then
+		[ra]=-3;
+		goto exit;
+	endif;
+	multipush(R1,R2,R3,R4,R5,R7,R10);
+	R1=3;
+	R2=filename;
+	call MOD_3;
+	multipop(R1,R2,R3,R4,R5,R7,R10);
+	alias filei R6;
+	filei=R0;
+	if(filei<0) then
+		[ra]=filei;
+		goto exit;
+	endif;
+	[uap*512+496+2*i]=0;
+	[uap*512+496+2*i+1]=filei;
+	[ra]=i;
+	goto exit;
+endif;
+//close
+if(syscallno==3) then
+	[PROCESS_TABLE+pid*16+9]=3;
+	alias fd R3;
+	fd=[([PTBR+2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+	if(fd<0||fd>7) then
+		[ra]=-1;
+		goto exit;
+	endif;
+	alias uap R4;
+	uap=[PROCESS_TABLE+pid*16+11];
+	if([uap*512+496+2*fd+1]==-1||[uap*512+496+2*fd]!=0) then
+		[ra]=-1;
+		goto exit;
+	endif;
+	alias i R5;
+	i=[uap*512+496+2*fd+1];
+	multipush(R1,R2,R3,R4,R5,R7,R10);
+	R1=4;
+	R2=i;
+	call MOD_3;
+	multipop(R1,R2,R3,R4,R5,R7,R10);
+	[uap*512+496+2*fd]=-1;
+	[uap*512+496+2*fd+1]=-1;
+	[ra]=0;
+	goto exit;
+endif;
+exit:
+	SP=userSP;
+	[PROCESS_TABLE+pid*16+9]=0;
+	ireturn;

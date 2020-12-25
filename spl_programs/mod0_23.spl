@@ -1,0 +1,124 @@
+breakpoint;
+alias function_no R1;
+//acquire disk
+if(function_no==3) then
+	alias current_pid R2;
+	breakpoint;
+	while([DISK_STATUS_TABLE]==1) do
+		[PROCESS_TABLE+(current_pid*16)+4]=WAIT_DISK;
+		multipush(R1,R2);
+		call SCHEDULER;
+		multipop(R1,R2);
+	endwhile;
+	[DISK_STATUS_TABLE]=1;
+	[DISK_STATUS_TABLE+4]=current_pid;
+	return;
+endif;
+//acquire inode
+if(function_no==4) then
+	alias iindex R2;
+	alias pid R3;
+	while([FILE_STATUS_TABLE+iindex*4]!=-1) do
+		[PROCESS_TABLE+pid*16+4]=WAIT_FILE;
+		[PROCESS_TABLE+pid*16+5]=iindex;
+		multipush(R1,R2,R3);
+		call SCHEDULER;
+		multipop(R1,R2,R3);
+	endwhile;
+	if([INODE_TABLE+iindex*16+1]==-1) then
+		R0=-1;
+		return;
+	endif;
+	[FILE_STATUS_TABLE+iindex*4]=pid;
+	R0=0;
+	return;
+endif;
+//release inode
+if(function_no==5) then
+	alias iindex R2;
+	alias pid R3;
+	if([FILE_STATUS_TABLE+iindex*4]!=pid) then
+		R0=-1;
+		return;
+	endif;
+	[FILE_STATUS_TABLE+iindex*4]=-1;
+	alias i R4;
+	i=0;
+	while(i<16) do
+		if([PROCESS_TABLE+i*16+4]==WAIT_FILE&&[PROCESS_TABLE+i*16+4]==iindex) then
+			[PROCESS_TABLE+pid*16+4]=READY;
+		endif;
+		i=i+1;
+	endwhile;
+	R0=0;
+	return;
+endif;
+//acquire semaphore
+if(function_no==6) then
+	alias current_pid R2;
+	alias i R3;
+	i=0;
+	while(i<32) do
+		if([SEMAPHORE_TABLE+i*4+1]==0) then
+			break;
+		endif;
+		i=i+1;
+	endwhile;
+	if(i==32) then
+		R0=-1;
+		return;
+	endif;
+	[SEMAPHORE_TABLE+i*4]=-1;
+	[SEMAPHORE_TABLE+i*4+1]=1;
+	R0=i;
+	return;
+endif;
+//release semaphore
+if(function_no==7) then
+	alias current_pid R2;
+	alias semi R3;
+	if([SEMAPHORE_TABLE+semi*4]==current_pid) then
+		[SEMAPHORE_TABLE+semi*4]=-1;
+		alias i R4;
+		i=0;
+		while(i<16) do
+			if(([PROCESS_TABLE+(current_pid*16)+4]==WAIT_SEMAPHORE)&&([PROCESS_TABLE+(current_pid*16)+5]==semi)) then
+				[PROCESS_TABLE+(current_pid*16)+4]=READY;
+			endif;
+			i=i+1;
+		endwhile;
+	endif;
+	return;
+endif;
+//acquire terminal
+if(function_no==8) then 
+	alias current_pid R2;
+	while([TERMINAL_STATUS_TABLE]==1) do
+		[PROCESS_TABLE+(current_pid*16)+4]=WAIT_TERMINAL;
+		multipush(R1,R2);
+		call SCHEDULER;
+		multipop(R1,R2);
+	endwhile;
+	[TERMINAL_STATUS_TABLE]=1;
+	[TERMINAL_STATUS_TABLE+1]=current_pid;
+	return;
+endif;
+//release terminal
+if(function_no==9) then
+	alias current_pid R2;
+	if(current_pid!=[TERMINAL_STATUS_TABLE+1]) then
+		R0=-1;
+		return;
+	endif;
+	[TERMINAL_STATUS_TABLE]=0;
+	alias i R3;
+	i=0;
+	while(i<16) do
+		if([PROCESS_TABLE+(i*16)+4]==WAIT_TERMINAL) then
+			[PROCESS_TABLE+(i*16)+4]=READY;
+		endif;
+		i=i+1;
+	endwhile;
+	R0=0;
+	return;
+endif;

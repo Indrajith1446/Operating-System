@@ -1,0 +1,97 @@
+breakpoint;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=8;
+alias userSP R1;
+userSP=SP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias pbi R2;
+multipush(R1,R2);
+R1=1;
+call MOD_1;
+multipop(R1,R2);
+pbi=R0;
+if(pbi==-1) then
+	[([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+	SP=userSP;
+	[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;	
+	ireturn;
+endif;
+alias pid R3;
+pid=[SYSTEM_STATUS_TABLE+1];
+PTBR=PAGE_TABLE_BASE;
+if([PTBR+pid*20+4]==-1) then
+	multipush(R1,R2,R3);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3);
+	[PTBR+pid*20+4]=R0;
+	[PTBR+pid*20+5]="1110";
+	multipush(R1,R2,R3);
+	R1=1;
+	call MOD_2;
+	multipop(R1,R2,R3);
+	[PTBR+pid*20+6]=R0;
+	[PTBR+pid*20+7]="1110";
+endif;
+alias uap R4;
+alias us1 R5;
+alias us2 R6;
+multipush(R1,R2,R3,R4,R5,R6);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6);
+uap=R0;
+multipush(R1,R2,R3,R4,R5,R6);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6);
+us1=R0;
+multipush(R1,R2,R3,R4,R5,R6);
+R1=1;
+call MOD_2;
+multipop(R1,R2,R3,R4,R5,R6);
+us2=R0;
+[PROCESS_TABLE+pbi*16+3]=[PROCESS_TABLE+pid*16+3];
+[PROCESS_TABLE+pbi*16+6]=[PROCESS_TABLE+pid*16+6];
+[PROCESS_TABLE+pbi*16+10]=[PROCESS_TABLE+pid*16+10];
+[PROCESS_TABLE+pbi*16+7]=[PROCESS_TABLE+pid*16+7];
+[PROCESS_TABLE+pbi*16+13]=[PROCESS_TABLE+pid*16+13];
+[PROCESS_TABLE+pbi*16+9]=0;
+[PROCESS_TABLE+pbi*16+12]=0;
+[PROCESS_TABLE+pbi*16+0]=0;
+[PROCESS_TABLE+pbi*16+2]=pid;
+[PROCESS_TABLE+pbi*16+4]=CREATED;
+[PROCESS_TABLE+pbi*16+11]=uap;
+alias i R7;
+//copying disk map table
+i=0;
+while(i<10) do
+	[DISK_MAP_TABLE+pbi*10+i]=[DISK_MAP_TABLE+pid*10+i];
+	i=i+1;
+endwhile;
+//copying lib heap and code page
+i=0;
+while(i<16) do
+	[PTBR+pbi*20+i]=[PTBR+pid*20+i];
+	[MEMORY_FREE_LIST+[PTBR+pid*20+i]]=[MEMORY_FREE_LIST+[PTBR+pid*20+i]]+1;
+	i=i+1;
+endwhile;
+//stack initialisation
+[PTBR+pbi*20+16]=us1;
+[PTBR+pbi*20+17]=[PTBR+pid*20+17];
+[PTBR+pbi*20+18]=us2;
+[PTBR+pbi*20+19]=[PTBR+pid*20+19];
+i=0;
+while(i<=511) do
+	[[PTBR+pbi*20+16]*512+i]=[[PTBR+pid*20+16]*512+i];
+	[[PTBR+pbi*20+18]*512+i]=[[PTBR+pid*20+18]*512+i];
+	i=i+1;
+endwhile;
+PTBR=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+14];
+[[PROCESS_TABLE+pbi*16+11]*512]=BP;
+[([[PROCESS_TABLE+pid*16+14]+2*(([PROCESS_TABLE+pid*16+13]-1)/512)]*512)+(([PROCESS_TABLE+pid*16+13]-1)%512)]=pbi;
+[([[PROCESS_TABLE+pbi*16+14]+2*(([PROCESS_TABLE+pbi*16+13]-1)/512)]*512)+(([PROCESS_TABLE+pbi*16+13]-1)%512)]=0;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13];
+breakpoint;
+ireturn;
