@@ -1,0 +1,29 @@
+int main()
+{
+decl 
+	int temp,i,size,rt,f1;
+	string filename1,tname,data;
+enddecl
+begin
+	rt=exposcall("Open","root");
+	temp=exposcall("Read",-1,filename1);
+	i=0;
+	while(i<60) do
+		temp=exposcall("Read",rt,tname);
+		if(tname==filename1) then
+			temp=exposcall("Read",rt,size);
+			break;
+		endif;
+		temp=exposcall("Seek",rt,7);
+		i=i+1;
+	endwhile;
+	f1=exposcall("Open",filename1);
+	i=0;
+	while(i<size) do
+		temp=exposcall("Read",f1,data);
+		temp=exposcall("Write",-2,data);
+		i=i+1;
+	endwhile;
+	return 0;
+end
+}

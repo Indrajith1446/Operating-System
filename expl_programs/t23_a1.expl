@@ -1,0 +1,14 @@
+int main()
+{
+decl
+	string data;
+	int temp,perm,a;
+enddecl
+begin
+	temp=exposcall("Read",-1,data);
+	temp=exposcall("Read",-1,perm);
+	a=exposcall("Create",data,perm);
+	temp=exposcall("Write",-2,a);
+	return 0;
+end
+}

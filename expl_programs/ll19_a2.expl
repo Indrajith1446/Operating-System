@@ -1,0 +1,14 @@
+int main()
+{
+decl
+	int a,i;
+enddecl
+begin
+	i=0;
+	while(i<5) do
+		a=i/0;
+		i=i+1;
+	endwhile;
+	return 0;
+end
+}

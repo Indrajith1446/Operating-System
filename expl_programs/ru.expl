@@ -1,0 +1,27 @@
+int main()
+{
+decl 
+	string fname,uname;
+	int temp,rt,i,f,uid,un;
+enddecl
+begin
+	temp=exposcall("Read",-1,uname);
+	rt=exposcall("Open","root");
+	i=0;
+	while(i<60) do
+		temp=exposcall("Read",rt,fname);
+		if(fname!="-1") then
+			temp=exposcall("Seek",rt,2);
+			temp=exposcall("Read",rt,un);
+			uid=exposcall("Getuid",uname);
+			if(un==uid) then
+				temp=exposcall("Delete",fname);
+			endif;
+			temp=exposcall("Seek",rt,-3);
+		endif;
+		temp=exposcall("Seek",rt,7);
+		i=i+1;
+	endwhile;
+	return 0;
+end
+}

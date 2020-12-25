@@ -1,0 +1,15 @@
+decl
+	str arr[10];
+enddecl
+int main()
+{
+decl
+	int temp;
+	str a;
+enddecl
+begin
+	temp=exposcall("Read",-1,a);
+	temp=exposcall("Exec",a);
+	return 0;	
+end
+}

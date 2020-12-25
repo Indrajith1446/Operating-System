@@ -1,0 +1,20 @@
+int main()
+{
+decl
+	int temp,fd,a,data;
+	string name;
+enddecl
+begin
+	temp=exposcall("Read",-1,name);
+	fd=exposcall("Open",name);
+	temp=exposcall("Write",-2,fd);
+	data=-1;
+	a=0;
+	while(a!=-2) do
+		a=exposcall("Read",fd,data);
+		temp=exposcall("Write",-2,data);
+	endwhile;
+	temp=exposcall("Close",name);
+	return 0;
+end
+}

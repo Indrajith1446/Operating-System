@@ -1,0 +1,20 @@
+int main()
+{
+decl 
+	string fname;
+	int temp,rt,i,f;
+enddecl
+begin
+	rt=exposcall("Open","root");
+	i=0;
+	while(i<60) do
+		temp=exposcall("Read",rt,fname);
+		if(fname!="-1") then
+			temp=exposcall("Write",-2,fname);
+		endif;
+		temp=exposcall("Seek",rt,7);
+		i=i+1;
+	endwhile;
+	return 0;
+end
+}
